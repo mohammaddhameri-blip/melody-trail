@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.MelodyTrail" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#5264D9</item>
+        <item name="android:statusBarColor">#EFF2FF</item>
+        <item name="android:navigationBarColor">#EFF2FF</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowBackground">#F8FAFF</item>
+    </style>
+</resources>
