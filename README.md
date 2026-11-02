@@ -12,6 +12,10 @@ A musical imitation game for primary pupils. Listen, read the musical notes, the
 
 Eight levels, five challenges per level: whistle, percussion, recorder (G A B C′ D′), sung solfège and piano. Your highest score is saved per challenge; complete all five and earn an average of 80% to unlock the next level. Individual tasks are replayable.
 
+## Beats game mode (new)
+
+Use the **Beats** tab for a separate 10-level rhythm imitation game, with its own unlocks and progress. Pupils listen to a short pattern, tap a touch-friendly overhead 2D drum kit to repeat it, and receive a result based on **70% correct drums + 30% timing**. Score 80% to unlock the next level. Patterns progress from simple snare and kick beats to hi-hat offbeats, rests, tom fills, ride and crash cymbals. The kit has eight percussion sounds and requires **no microphone**. The original Melody music challenges remain available; its old drum pads now use the overhead kit as well. Beats scores are stored in separate local device storage.
+
 ## Android build
 
 `.github/workflows/build-android.yml` uses GitHub Actions to compile the offline Android WebView application from the same `index.html` source. It publishes the APK to the latest GitHub Release. Audio capture runs locally and is never uploaded. The app uses AndroidX WebViewAssetLoader to provide a secure HTTPS origin to its bundled HTML.
