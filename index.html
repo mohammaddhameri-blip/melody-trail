@@ -227,6 +227,17 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
   <h3>Microphone</h3>
   <button id="micButton" class="mic-btn" type="button">Connect microphone</button>
   <p>Microphone is used for whistle, recorder and solfège. The drum pads and piano keyboard can be played on screen.</p>
+  <h3>Android updates</h3>
+  <p id="updateStatus" role="status" aria-live="polite">Checking update availability…</p>
+  <label id="autoUpdateRow" style="display:flex;gap:9px;align-items:center;margin:12px 0;">
+    <input type="checkbox" id="autoUpdateToggle" checked />
+    Automatically download new APK versions
+  </label>
+  <div id="updateActions" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+    <button id="checkUpdateBtn" type="button" class="mic-btn" style="flex:1;min-width:115px;">Check now</button>
+    <button id="installUpdateBtn" type="button" class="mic-btn ready" style="flex:1;min-width:115px;" hidden>Install update</button>
+  </div>
+  <p id="updatePermissionNote">When an APK finishes downloading, Android will ask you to approve its installation.</p>
   <h3>Android app</h3>
   <a class="apk-link" href="https://github.com/mohammaddhameri-blip/melody-trail/releases/latest/download/Melody_Trail.apk" target="_blank" rel="noopener noreferrer" aria-label="Download Melody Trail Android APK from GitHub Releases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3"/></svg>Download Android APK</a>
   <p>The latest APK opens from GitHub Releases. If a new build is being prepared, check the repository release page.</p>
@@ -706,6 +717,32 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
     const score=points.reduce((a,b)=>a+b,0)/seq.length;
     updateScore(score,`${states.filter(s=>s==='ok').length}/${seq.length} correct piano notes. Matching both pitch and timing improves the grade.`);
     renderLane(-1,states);
+  }
+  function renderUpdateState(state,message,tag){
+    const updating=state==='checking'||state==='downloading';
+    $('updateStatus').textContent=message||(state==='current'?'App is up to date':'GitHub update status unavailable');
+    $('checkUpdateBtn').disabled=updating;
+    $('installUpdateBtn').hidden=!(state==='ready'||state==='permission');
+    if(tag&&state==='ready')$('installUpdateBtn').textContent='Install '+tag.replace('android-','#');
+  }
+  window.onMelodyUpdate=renderUpdateState;
+  if(window.MelodyUpdater){
+    try{
+      const settings=JSON.parse(window.MelodyUpdater.getState());
+      $('autoUpdateToggle').checked=!!settings.enabled;
+      renderUpdateState(settings.status,settings.detail,settings.version);
+      $('checkUpdateBtn').addEventListener('click',()=>window.MelodyUpdater.checkNow());
+      $('installUpdateBtn').addEventListener('click',()=>window.MelodyUpdater.installReady());
+      $('autoUpdateToggle').addEventListener('change',event=>
+        window.MelodyUpdater.setAutoEnabled(event.target.checked));
+    }catch(error){
+      $('updateStatus').textContent='Update controls unavailable. Use the official GitHub APK link below.';
+      $('autoUpdateRow').hidden=true;$('updateActions').hidden=true;
+    }
+  }else{
+    $('updateStatus').textContent='Automatic APK downloads are available in the Android app.';
+    $('autoUpdateRow').hidden=true;$('updateActions').hidden=true;
+    $('updatePermissionNote').hidden=true;
   }
   $('micButton').addEventListener('click',()=>{if(live){showError('Stop the performance before disconnecting the microphone.');return;}setupMic();});
   $('hearBtn').addEventListener('click',playExample);
