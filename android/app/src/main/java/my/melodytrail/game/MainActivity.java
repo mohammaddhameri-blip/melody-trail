@@ -1,6 +1,7 @@
 package my.melodytrail.game;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -129,6 +130,7 @@ public class MainActivity extends Activity {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private void startNativeRecording() {
         stopNativeRecording();
         try {
@@ -221,9 +223,13 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onPause() {
-        stopNativeRecording();
-        if (webView != null) webView.evaluateJavascript(
-                "window.onMelodyMicrophoneInterrupted && window.onMelodyMicrophoneInterrupted()", null);
+        // The Android permission prompt can itself pause this Activity; do not
+        // cancel the first microphone grant while the user answers the dialog.
+        if (nativeRecording) {
+            stopNativeRecording();
+            if (webView != null) webView.evaluateJavascript(
+                    "window.onMelodyMicrophoneInterrupted && window.onMelodyMicrophoneInterrupted()", null);
+        }
         super.onPause();
     }
 
