@@ -175,6 +175,75 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
 .apk-link svg{width:21px;height:21px;flex-shrink:0;}
 @media(max-width:600px){.wrap{padding:0 12px 14px;min-height:min(750px,100vh)}.masthead{height:129px;padding-top:29px}.brand{top:19px;font-size:10px;gap:5px;letter-spacing:.075em}.brand-mark{width:30px;height:30px;border-radius:10px}.brand-mark svg{width:19px;height:19px}.step-line{padding:10px 12px;border-radius:12px;font-size:10px}.settings-button{top:17px;width:39px;height:39px;border-radius:13px}.task-title{margin:0 0 16px}.staff-wrap{margin:0;width:100%;padding:6px 3px;border-radius:18px}.staff-wrap::before{padding:8px 9px 0;font-size:9px}.instruction{font-size:12px}.actions{margin:14px auto 5px}.btn{padding:9px 15px;min-height:45px;border-radius:12px;font-size:12px}.footer{gap:8px;padding-top:22px}.starrow{padding:9px 4px 6px;gap:2px;border-radius:18px}.star-button{min-height:77px;padding:5px 0;gap:3px}.challenge-symbol{width:40px;height:40px;border-radius:13px}.challenge-symbol svg{width:26px;height:26px}.task-caption{font-size:10px}.task-score{font-size:9px}.nav-arrow{font-size:11px}.nav-summary{font-size:10px}.settings-dialog{padding:19px}}
 @media(max-width:365px){.brand{font-size:9px}.brand-mark{width:27px;height:27px}.step-line{margin-left:16px}.starrow{padding-left:2px;padding-right:2px}.task-caption{font-size:9px}.task-score{font-size:8px}.challenge-symbol{width:37px;height:37px}}
+
+/* Separate Beats studio: tactile top-view drum kit, not a microphone input. */
+.mode-switch{display:flex;align-self:center;gap:5px;margin:-38px auto 19px;padding:5px;background:#e8ecfa;border-radius:999px;box-shadow:inset 0 1px 3px #2b417313;z-index:1}
+.mode-tab{border:0;background:transparent;color:#65718f;font-size:13px;font-weight:800;border-radius:999px;padding:8px 19px;min-width:105px}
+.mode-tab.active{background:#fff;color:#4355c4;box-shadow:0 3px 12px #36478019}
+.beats-game{display:flex;flex-direction:column;align-items:center;gap:12px;min-height:0;flex:1}
+.beats-game[hidden],.mode-switch[hidden]{display:none!important}
+.beats-top{width:100%;text-align:center}
+.beats-top h1{font-size:clamp(23px,3vw,31px);letter-spacing:-.03em;margin:0;font-weight:850}
+.beats-top p{font-size:13px;margin:4px 0 0;color:#71809b}
+.beats-toolbar{width:min(100%,780px);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.beats-toolbar .btn{min-height:44px}
+.beats-level-pill{border-radius:999px;padding:7px 13px;background:#e8edff;color:#4c5caf;font-size:12px;font-weight:850}
+.beat-sequence{width:min(100%,780px);display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:1px 0 0}
+.beat-seq-note{font-size:11px;border:1px solid #dfe5f4;border-radius:9px;background:#fff;color:#4d6083;padding:5px 8px;font-weight:750;min-width:48px;text-align:center}
+.beat-seq-note.now{background:#5367da;color:white;border-color:#5367da}
+.beat-seq-note.correct{background:#e1f7e8;color:#27734e;border-color:#aee0c0}
+.beat-seq-note.wrong{background:#fff0f1;color:#9c3b4f;border-color:#f5c8cd}
+.beats-drumstage{width:min(100%,900px);border-radius:24px;padding:10px;background:#fff;box-shadow:0 10px 33px #34478019;border:1px solid #e6eaf5}
+.beats-drumkit{position:relative;width:100%;aspect-ratio:1.72;max-height:500px;min-height:220px;overflow:hidden;border-radius:18px;isolation:isolate;
+ background:repeating-linear-gradient(90deg,#78503b 0px,#875a43 25px,#744935 27px,#9b6850 54px,#714631 56px);user-select:none}
+.beats-drumkit::before{content:"";position:absolute;inset:9% 8% 2%;z-index:-1;border:9px solid #a7694e;border-radius:5px;
+ background:repeating-linear-gradient(47deg,transparent 0 16px,#971f324e 17px 19px,transparent 20px 30px),
+ repeating-linear-gradient(-45deg,#952b36 0px,#752734 20px,#263751 25px,#b86748 37px,#8c2837 43px);
+ box-shadow:0 7px 15px #0007,inset 0 0 0 5px #ebae70aa,inset 0 0 0 13px #38244488}
+.kit-piece{position:absolute;border:5px solid #41464c;border-radius:50%;padding:0;cursor:pointer;touch-action:manipulation;
+ display:grid;place-items:end center;overflow:hidden;z-index:2;
+ background:repeating-radial-gradient(circle at 49% 47%,#eee 0 8px,#dedede 9px 11px,#f4f4f4 12px 26px);
+ box-shadow:inset 0 0 0 5px #96999c,inset 0 0 0 9px #babdc0,0 6px 12px #1b15165c}
+.kit-piece::before{content:"";position:absolute;inset:7%;border:2px solid #ffffff52;border-radius:50%;pointer-events:none}
+.kit-piece.cymbal{z-index:5;border:0;
+ background:repeating-radial-gradient(circle at 49% 46%,#e7d5a3 0 12px,#c3a45d 13px 15px,#e8d8a8 16px 28px,#d6ba79 29px 31px);
+ box-shadow:0 4px 12px #24170a7d,inset 0 0 30px #fff5c5}
+.kit-piece.cymbal::after{content:"";position:absolute;top:47%;left:48%;width:12px;height:12px;border-radius:50%;background:#242731;transform:translate(-50%,-50%);box-shadow:0 1px 3px #0009}
+.kit-piece.kick{background:radial-gradient(circle at 50% 49%,#353b42 0 21%,#d3d6d9 22% 53%,#f2f3f5 74%);
+ z-index:1}
+.kit-piece .kit-label{position:relative;display:block;margin:0 0 8%;padding:2px 6px;border-radius:6px;
+ font-size:clamp(8px,1.7vw,13px);font-weight:850;color:#243653;background:#ffffffda;z-index:2;line-height:1.3}
+.kit-piece.cymbal .kit-label{background:#f9efd9e6;color:#5b4229}
+.kit-piece:disabled{opacity:.57;filter:saturate(.5);cursor:default}
+.kit-piece:disabled .kit-label{display:none}
+.kit-piece:focus-visible{outline:4px solid #5275ff;outline-offset:2px}
+.kit-piece.hit,.kit-piece:active:not(:disabled){filter:brightness(1.18);transform:scale(.96);box-shadow:inset 0 0 0 5px #fff,0 0 0 5px #7989efad;z-index:7}
+.kit-piece.demo-hit{filter:brightness(1.25);box-shadow:0 0 0 6px #92caffca,0 0 27px #a7d6ff;z-index:8}
+.kit-piece[data-piece="hat"]{left:3%;top:15%;width:29%;height:42%;z-index:6}
+.kit-piece[data-piece="crash"]{left:14%;top:-17%;width:40%;height:66%}
+.kit-piece[data-piece="ride"]{right:0%;top:-19%;width:39%;height:64%}
+.kit-piece[data-piece="tom1"]{left:31%;top:25%;width:23%;height:40%}
+.kit-piece[data-piece="tom2"]{left:52%;top:23%;width:23%;height:40%}
+.kit-piece[data-piece="snare"]{left:10%;bottom:-7%;width:30%;height:52%;z-index:3}
+.kit-piece[data-piece="kick"]{left:34%;bottom:-28%;width:38%;height:71%;z-index:2}
+.kit-piece[data-piece="floor"]{right:3%;bottom:-14%;width:31%;height:59%;z-index:3}
+.beats-status{text-align:center;font-size:13px;color:#667593;min-height:21px}
+.beats-result{width:min(100%,700px);text-align:center;border-radius:15px;padding:12px 15px;background:#eef7f1;color:#2d694d;border:1px solid #bce2c9}
+.beats-result.needswork{background:#fff8ec;color:#80602f;border-color:#f6daac}
+.beats-result strong{display:block;font-size:18px}
+.beats-result span{display:block;font-size:12px;margin-top:4px}
+.beats-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;width:min(100%,780px);margin:5px auto 0;padding-bottom:10px}
+.beats-footer .btn{min-width:110px}
+.beats-stats{font-size:12px;color:#71809b;text-align:center;font-weight:750}
+@media(max-width:600px){
+ .mode-switch{margin:-15px auto 17px}.mode-tab{padding:7px 16px;min-width:100px;font-size:12px}
+ .beats-drumstage{padding:5px;border-radius:17px}.beats-drumkit{border-radius:13px;aspect-ratio:1.3;min-height:235px}
+ .beats-top h1{font-size:23px}.beats-top p{font-size:12px}
+ .beats-toolbar .btn{font-size:12px;padding:8px 12px;min-height:43px}
+ .kit-piece{border-width:3px;box-shadow:inset 0 0 0 3px #96999c,inset 0 0 0 6px #babdc0,0 4px 8px #1b15165c}
+ .kit-piece .kit-label{font-size:10px;padding:2px 4px;margin-bottom:9%}
+ .beats-footer .btn{min-width:86px;padding:9px 10px;font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -186,7 +255,11 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 2.4h3.6l.56 2.15c.48.16.94.35 1.38.59l1.92-1.12 2.55 2.55-1.12 1.92c.24.44.43.9.59 1.38l2.15.56v3.6l-2.15.56c-.16.48-.35.94-.59 1.38l1.12 1.92-2.55 2.55-1.92-1.12c-.44.24-.9.43-1.38.59l-.56 2.15h-3.6l-.56-2.15a8.15 8.15 0 0 1-1.38-.59l-1.92 1.12-2.55-2.55 1.12-1.92c-.24-.44-.43-.9-.59-1.38L2.2 13.8v-3.6l2.15-.56c.16-.48.35-.94.59-1.38L3.82 6.34l2.55-2.55 1.92 1.12c.44-.24.9-.43 1.38-.59z"/><circle cx="12" cy="12" r="3.3"/></svg>
     </button>
   </header>
-  <main class="game">
+  <nav class="mode-switch" aria-label="Choose game mode">
+    <button id="melodyModeTab" class="mode-tab active" type="button" aria-pressed="true">Melody</button>
+    <button id="beatsModeTab" class="mode-tab" type="button" aria-pressed="false">🥁 Beats</button>
+  </nav>
+  <main id="musicGame" class="game">
     <h1 id="taskTitle" class="task-title">Whistle the tune</h1>
     <p id="taskDescription" class="sr-only">Listen to the notes, then perform them.</p>
     <div class="staff-wrap"><div id="notation" role="img" aria-label="Sheet music showing the notes"></div></div>
@@ -206,7 +279,28 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
     <div id="unlockBanner" class="banner" role="status" hidden></div>
     <button id="advanceBtn" class="btn next-level" type="button" hidden>Level 2 →</button>
   </main>
-  <footer class="footer">
+  <main id="beatsGame" class="beats-game" hidden>
+    <div class="beats-top">
+      <h1 id="beatsTitle">The First Beat</h1>
+      <p id="beatsSubtitle">Listen, then tap the drums in the same rhythm.</p>
+    </div>
+    <div class="beats-toolbar">
+      <button id="beatsListen" class="btn" type="button">♫ Listen</button>
+      <span id="beatsLevelPill" class="beats-level-pill">LEVEL 1 / 10</span>
+      <button id="beatsStart" class="btn primary" type="button">▶ Start</button>
+      <button id="beatsStop" class="btn warn" type="button" hidden>■ Stop</button>
+    </div>
+    <div id="beatsSequence" class="beat-sequence" aria-label="Drum rhythm pattern"></div>
+    <div class="beats-drumstage"><div id="beatsDrumKit" class="beats-drumkit" aria-label="Tap the drums in this overhead drum kit"></div></div>
+    <div id="beatsStatus" class="beats-status" role="status" aria-live="polite">Listen, then press Start to imitate the beat.</div>
+    <div id="beatsResult" class="beats-result" hidden aria-live="polite"></div>
+    <nav class="beats-footer" aria-label="Beats levels">
+      <button id="beatsPrev" type="button" class="btn">← Previous</button>
+      <span id="beatsStats" class="beats-stats">Best — · Need 80%</span>
+      <button id="beatsNext" type="button" class="btn primary">Next →</button>
+    </nav>
+  </main>
+  <footer id="musicFooter" class="footer">
     <nav id="taskBar" class="starrow" aria-label="Choose a challenge"></nav>
     <div class="nav">
       <button id="prevBtn" class="nav-arrow" type="button" aria-label="Previous challenge"><svg viewBox="0 0 36 36" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="15"/><path d="m20.5 11.5-6.5 6.5 6.5 6.5M14 18h11"/></svg><span>Previous</span></button>
@@ -224,9 +318,11 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
   <h3>Level score</h3>
   <div class="scoreline"><span>Average · A begins at 80%</span><strong id="average">0%</strong></div>
   <div class="progress" aria-label="Level progress"><div id="levelProgress"></div></div>
+  <section id="micSettings">
   <h3>Microphone</h3>
   <button id="micButton" class="mic-btn" type="button">Connect microphone</button>
   <p>Microphone is used for whistle, recorder and solfège. The drum pads and piano keyboard can be played on screen.</p>
+  </section>
   <h3>Android updates</h3>
   <p id="updateStatus" role="status" aria-live="polite">Checking update availability…</p>
   <label id="autoUpdateRow" style="display:flex;gap:9px;align-items:center;margin:12px 0;">
@@ -242,7 +338,7 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
   <a class="apk-link" href="https://github.com/mohammaddhameri-blip/melody-trail/releases/latest/download/Melody_Trail.apk" target="_blank" rel="noopener noreferrer" aria-label="Download Melody Trail Android APK from GitHub Releases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3"/></svg>Download Android APK</a>
   <p>The latest APK opens from GitHub Releases. If a new build is being prepared, check the repository release page.</p>
   <h3>How to play</h3>
-  <p>Listen to the example, then imitate it. Use the five instrument icons to switch challenges. Your best scores are saved on this device. Complete all five and achieve an 80% level average to unlock the next level.</p>
+  <p id="howToPlay">Listen to the example, then imitate it. Use the five instrument icons to switch challenges. Your best scores are saved on this device. Complete all five and achieve an 80% level average to unlock the next level.</p>
 </dialog>
 <script>
 
