@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
     private static final int MIC_WINDOW_SIZE = 4096;
 
     private WebView webView;
+    private UpdateManager updateManager;
     private PermissionRequest pendingMicrophone;
     private boolean nativePermissionPending = false;
     private AudioRecord nativeRecorder;
@@ -52,9 +53,17 @@ public class MainActivity extends Activity {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
-        // This bridge is only exposed to the bundled, trusted offline game.
+        // Bridges are exposed only to the bundled local game; external URLs
+        // open outside this WebView.
         webView.addJavascriptInterface(new NativeMicrophone(), "MelodyNativeMic");
+        updateManager = new UpdateManager(this, webView);
+        webView.addJavascriptInterface(updateManager, "MelodyUpdater");
         webView.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if ("https://appassets.androidplatform.net/assets/index.html".equals(url))
+                    updateManager.onPageReady();
+            }
             @Override public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 return assetLoader.shouldInterceptRequest(request.getUrl());
             }
@@ -231,6 +240,11 @@ public class MainActivity extends Activity {
                     "window.onMelodyMicrophoneInterrupted && window.onMelodyMicrophoneInterrupted()", null);
         }
         super.onPause();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (updateManager != null) updateManager.onResume();
     }
 
     @Override protected void onDestroy() {
