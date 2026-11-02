@@ -42,10 +42,35 @@ jobs:
           NODE
       - name: Bundle current game
         run: cp index.html android/app/src/main/assets/index.html
+      - name: Configure APK signing
+        env:
+          MELODY_KEYSTORE_BASE64: ${{ secrets.MELODY_KEYSTORE_BASE64 }}
+          MELODY_KEYSTORE_PASSWORD: ${{ secrets.MELODY_KEYSTORE_PASSWORD }}
+          MELODY_KEY_ALIAS: ${{ secrets.MELODY_KEY_ALIAS }}
+          MELODY_KEY_PASSWORD: ${{ secrets.MELODY_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$MELODY_KEYSTORE_BASE64" && -n "$MELODY_KEYSTORE_PASSWORD" && -n "$MELODY_KEY_ALIAS" && -n "$MELODY_KEY_PASSWORD" ]]; then
+            printf '%s' "$MELODY_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/melody-release.jks"
+            echo "MELODY_KEYSTORE_FILE=$RUNNER_TEMP/melody-release.jks" >> "$GITHUB_ENV"
+            echo 'APK_MODE=release' >> "$GITHUB_ENV"
+          else
+            echo 'APK_MODE=debug' >> "$GITHUB_ENV"
+            echo '::warning::Release signing secrets missing; generated debug APK may require uninstalling an earlier version.'
+          fi
       - name: Compile and lint Android app
-        run: gradle -p android assembleDebug lintDebug --no-daemon
+        run: |
+          if [ "$APK_MODE" = 'release' ]; then
+            gradle -p android assembleRelease lintRelease --no-daemon
+          else
+            gradle -p android assembleDebug lintDebug --no-daemon
+          fi
       - name: Prepare APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Melody_Trail.apk
+        run: |
+          if [ "$APK_MODE" = 'release' ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk Melody_Trail.apk
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk Melody_Trail.apk
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Melody_Trail
@@ -59,5 +84,5 @@ jobs:
           gh release create "$RELEASE_TAG" Melody_Trail.apk \
             --target "$GITHUB_SHA" \
             --title "Melody Trail Android build ${{ github.run_number }}" \
-            --notes "Offline Android prototype built from the current game. Debug-signed APK; a later build may require uninstalling the previous version." \
+            --notes "Melody Trail update with automatic GitHub APK download. Android installation requires user approval. Signing mode: $APK_MODE. For in-place upgrades, every version must use the same signing key." \
             --latest
