@@ -1,5 +1,14 @@
 plugins { id 'com.android.application' }
 
+// GitHub release tags are android-<run number>; the APK uses the matching
+// numeric versionCode so the app can compare installed vs latest versions.
+def buildNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '2').toInteger()
+def releaseKeyFile = System.getenv('MELODY_KEYSTORE_FILE')
+def releaseKeyPassword = System.getenv('MELODY_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('MELODY_KEY_ALIAS')
+def releaseKeyAliasPassword = System.getenv('MELODY_KEY_PASSWORD')
+def hasReleaseSigning = releaseKeyFile && releaseKeyPassword && releaseKeyAlias && releaseKeyAliasPassword
+
 android {
     namespace 'my.melodytrail.game'
     compileSdk 35
@@ -8,8 +17,26 @@ android {
         applicationId 'my.melodytrail.game'
         minSdk 26
         targetSdk 35
-        versionCode 2
-        versionName '1.0.1'
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseKeyFile)
+                storePassword releaseKeyPassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyAliasPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) signingConfig signingConfigs.release
+            minifyEnabled false
+        }
     }
 
     compileOptions {
@@ -20,4 +47,5 @@ android {
 
 dependencies {
     implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.core:core:1.13.1'
 }
