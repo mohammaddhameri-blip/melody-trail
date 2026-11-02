@@ -272,7 +272,7 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
   const STORE='melody-trail-progress-1';
   let saved={scores:{},unlocked:1};
   try { const raw=JSON.parse(localStorage.getItem(STORE)||'null'); if(raw && raw.scores && Number.isFinite(raw.unlocked)) saved=raw; } catch (_) {}
-  let level=1, task=0, latest=null, live=false, capture=null, audio=null, stream=null, analyser=null, micSource=null, runningOperation=0, busyDemo=false, micPulse=null, scorePreview=null;
+  let level=1, task=0, latest=null, live=false, capture=null, audio=null, stream=null, analyser=null, micSource=null, runningOperation=0, busyDemo=false, micPulse=null, scorePreview=null, nativeMic=false, micConnecting=false;
   let drumHits=[],firstDrumTime=null,pianoHits=[];
   let captureTimer=null, captureRaf=null, demoTimeouts=[];
 
@@ -329,33 +329,107 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
   function showStatus(s){$('detectedNote').textContent=s;}
   function showError(s){$('result').hidden=false;$('result').className='result needswork';$('result').innerHTML='<strong>Action needed</strong><p></p>';$('result').querySelector('p').textContent=s;}
 
+  // Android APK uses native AudioRecord so it works even when WebView's
+  // getUserMedia reports "Could not start audio source". The browser keeps
+  // using normal Web Audio permissions and the phone's default microphone.
   async function setupMic(){
-    if(stream){endMicrophone();return false;}
-    if(!navigator.mediaDevices?.getUserMedia){showError('Microphone permission requires HTTPS (such as GitHub Pages) or localhost, and a modern browser.');return false;}
+    if(nativeMic || stream){endMicrophone();return false;}
+    if(micConnecting)return false;
+    micConnecting=true;
+    showStatus('Connecting to your device microphone…');
     try {
-      const ctx=getAudio();
-      stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
-      analyser=ctx.createAnalyser();analyser.fftSize=4096;analyser.smoothingTimeConstant=0;
-      micSource=ctx.createMediaStreamSource(stream);micSource.connect(analyser); // Audio is analysed, never routed to speakers.
-      $('micButton').classList.add('ready');$('micButton').textContent='Disconnect microphone';
-      showStatus('Mic connected. Play a note to test it.');startMicMonitor();return true;
-    } catch(e){stream=null;showError(e.name==='NotAllowedError'?'Microphone access was denied. Allow it in your browser address bar and try again.':('Microphone could not start: '+(e.message||e.name)));return false;}
+      if(window.MelodyNativeMic?.start){
+        await new Promise((resolve,reject)=>{
+          let settled=false;
+          const done=(ok,message)=>{
+            if(settled)return;
+            settled=true;clearTimeout(timeout);
+            window.onMelodyMicrophoneReady=null;
+            if(ok)resolve();else reject(new Error(message||'Device microphone unavailable'));
+          };
+          const timeout=setTimeout(()=>done(false,'Microphone did not respond. Check Android microphone permission and retry.'),60000);
+          window.onMelodyMicrophoneReady=done;
+          try{window.MelodyNativeMic.start();}catch(error){done(false,error.message||String(error));}
+        });
+        nativeMic=true;
+      }else{
+        if(!navigator.mediaDevices?.getUserMedia)throw new Error('Microphone needs HTTPS and a modern browser.');
+        const ctx=getAudio();
+        try{
+          stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+        }catch(error){
+          if(!['NotReadableError','OverconstrainedError'].includes(error.name))throw error;
+          // Some phones cannot start with all audio processing switched off.
+          stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+        }
+        analyser=ctx.createAnalyser();analyser.fftSize=4096;analyser.smoothingTimeConstant=0;
+        micSource=ctx.createMediaStreamSource(stream);
+        micSource.connect(analyser); // Never route captured audio to speakers.
+        stream.getAudioTracks()[0]?.addEventListener('ended',()=>{
+          if(stream){endMicrophone();showStatus('Microphone disconnected. Press Perform to reconnect.');}
+        },{once:true});
+      }
+      $('micButton').classList.add('ready');
+      $('micButton').textContent='Disconnect microphone';
+      $('result').hidden=true;
+      showStatus('Microphone connected. Play a note to test it.');
+      startMicMonitor();
+      return true;
+    }catch(e){
+      try{stream?.getTracks().forEach(track=>track.stop());}catch(_){}
+      try{micSource?.disconnect();}catch(_){}
+      try{window.MelodyNativeMic?.stop();}catch(_){}
+      nativeMic=false;stream=null;micSource=null;analyser=null;
+      const denied=e.name==='NotAllowedError'||/permission denied/i.test(e.message||'');
+      showError(denied?'Microphone permission denied. Allow Melody Trail to use the microphone in your device settings, then retry.':
+        ('Microphone could not start: '+(e.message||e.name)+'. Close other recording apps and retry.'));
+      return false;
+    }finally{micConnecting=false;}
   }
-  function endMicrophone(){if(micPulse){clearInterval(micPulse);micPulse=null;}try{micSource?.disconnect();}catch(_){}stream?.getTracks().forEach(t=>t.stop());stream=null;micSource=null;analyser=null;$('micButton').classList.remove('ready');$('micButton').textContent='Connect microphone';showStatus('Microphone disconnected');}
-  function startMicMonitor(){if(micPulse)clearInterval(micPulse);micPulse=setInterval(()=>{
-    if(!analyser||live||busyDemo)return;
-    const p=readPitch(); if(p && ['whistle','recorder','vocal'].includes(getKind().key))showStatus('Mic check: '+pitchToName(p.midi));
-  },260);}
+  function endMicrophone(){
+    if(micPulse){clearInterval(micPulse);micPulse=null;}
+    try{micSource?.disconnect();}catch(_){}
+    try{stream?.getTracks().forEach(t=>t.stop());}catch(_){}
+    try{window.MelodyNativeMic?.stop();}catch(_){}
+    nativeMic=false;stream=null;micSource=null;analyser=null;
+    $('micButton').classList.remove('ready');$('micButton').textContent='Connect microphone';
+    showStatus('Microphone disconnected');
+  }
+  function startMicMonitor(){
+    if(micPulse)clearInterval(micPulse);
+    micPulse=setInterval(()=>{
+      if((!analyser&&!nativeMic)||live||busyDemo)return;
+      const p=readPitch();
+      if(p&&['whistle','recorder','vocal'].includes(getKind().key))showStatus('Mic check: '+pitchToName(p.midi));
+    },260);
+  }
   function pitchToName(midi){if(!Number.isFinite(midi))return '—';return noteName(Math.round(midi));}
   // YIN pitch detector: autocorrelation-like difference with cumulative normalization.
   function readPitch(){
-    if(!analyser || !audio)return null;
-    const buf=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(buf);
+    let buf,sampleRate;
+    if(nativeMic&&window.MelodyNativeMic?.getSamples){
+      try{
+        const encoded=window.MelodyNativeMic.getSamples();
+        if(!encoded)return null;
+        const bytes=atob(encoded);
+        if(bytes.length!==8192)return null;
+        buf=new Float32Array(4096);
+        for(let i=0;i<4096;i++){
+          const value=bytes.charCodeAt(i*2)|(bytes.charCodeAt(i*2+1)<<8);
+          buf[i]=(value>=32768?value-65536:value)/32768;
+        }
+        sampleRate=44100;
+      }catch(_){return null;}
+    }else{
+      if(!analyser || !audio)return null;
+      buf=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(buf);
+      sampleRate=audio.sampleRate;
+    }
     let power=0;for(let i=0;i<buf.length;i++)power+=buf[i]*buf[i];const rms=Math.sqrt(power/buf.length);
     if(rms<.009)return null;
     const decim=2, n=buf.length/decim, data=new Float32Array(n);
     for(let i=0;i<n;i++)data[i]=.5*(buf[i*2]+buf[i*2+1]);
-    const rate=audio.sampleRate/decim,minLag=Math.floor(rate/2150),maxLag=Math.min(Math.floor(rate/100),n/2-1),diff=new Float32Array(maxLag+1);
+    const rate=sampleRate/decim,minLag=Math.floor(rate/2150),maxLag=Math.min(Math.floor(rate/100),n/2-1),diff=new Float32Array(maxLag+1);
     for(let lag=minLag;lag<=maxLag;lag++){
       let sum=0;for(let j=0;j<n-maxLag;j+=2){const delta=data[j]-data[j+lag];sum+=delta*delta;}diff[lag]=sum;
     }
@@ -545,8 +619,8 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
       if(capture?.mode==='drum')capture.ready=true;
       showStatus('GO! Tap your first drum pad.');return;
     }
-    if(!stream){const ok=await setupMic();if(!ok)return;}
-    if(!analyser){showError('Microphone not available. Reconnect and retry.');return;}
+    if(!stream&&!nativeMic){const ok=await setupMic();if(!ok)return;}
+    if(!analyser&&!nativeMic){showError('Microphone not available. Reconnect and retry.');return;}
     try{getAudio();}catch(e){showError(e.message);return;}
     live=true;$('result').hidden=true;$('stopBtn').hidden=false;$('performBtn').disabled=true;$('hearBtn').disabled=true;
     const token=++runningOperation,ok=await countIn(token);
@@ -647,6 +721,12 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
       const v=({j:'kick',k:'snare',l:'hat'})[e.key.toLowerCase()];if(v){e.preventDefault();const b=document.querySelector(`[data-drum="${v}"]`);if(b)b.click();}
     }
   });
+  window.onMelodyMicrophoneInterrupted=()=>{
+    if(!nativeMic)return;
+    resetActivity();endMicrophone();
+    $('performBtn').disabled=false;$('hearBtn').disabled=false;
+    showStatus('Microphone paused. Press Perform to reconnect.');
+  };
   window.addEventListener('pagehide',()=>{resetActivity();endMicrophone();if(audio?.state==='running')audio.close().catch(()=>{});});
   // Progress is local to this browser. Recalculate unlocked levels from saved grades.
   saved.unlocked=clamp(Math.floor(saved.unlocked)||1,1,patterns.length);
