@@ -34,9 +34,10 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const html = fs.readFileSync('index.html', 'utf8');
-          const matches = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)];
-          if (!matches.length) throw new Error('No game script in index.html');
-          for (const [, script] of matches) new Function(script);
+          const start = html.lastIndexOf('<script>');
+          const end = html.lastIndexOf('</script>');
+          if (start < 0 || end <= start) throw new Error('No game script in index.html');
+          new Function(html.slice(start + '<script>'.length, end));
           console.log('Game JavaScript syntax OK');
           NODE
       - name: Bundle current game
