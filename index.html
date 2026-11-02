@@ -372,6 +372,35 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
     {title:'Harmony Hero',description:'Play longer melodies accurately as the rhythm becomes more complex.',whistle:[67,71,74,76,74,71,69,67],drum:[['kick',0],['hat',.5],['snare',1],['hat',1.5],['kick',2],['hat',2.5],['snare',3],['kick',3.5],['hat',4]],recorder:[67,69,71,74,72,69,71,72,74,67],vocal:[60,62,64,67,69,67,65,64,62],piano:[60,64,67,72,71,69,67,65,64,62,60],bpm:100},
     {title:'The Music Maestro',description:'The final challenge: confident notes, precise rhythms and flowing tunes.',whistle:[69,72,76,74,71,69,67,71,69],drum:[['kick',0],['hat',.5],['snare',1],['hat',1.5],['kick',2],['snare',2.5],['hat',3],['kick',3.5],['snare',4],['hat',4.5]],recorder:[67,71,74,72,69,67,69,71,72,74,67],vocal:[60,64,67,72,71,69,67,65,64,62,60],piano:[60,64,67,72,76,74,71,67,65,64,62,60],bpm:104}
   ];
+  // Beats is a separate 10-level game: independent scores, no microphone.
+  // Drum names and beat offsets form the level registry; offsets are in beats.
+  const beatLessons = [
+    {title:'First Tap',subtitle:'Two slow snare beats.',bpm:66,active:['snare'],pattern:[['snare',0],['snare',1]]},
+    {title:'Kick and Snare',subtitle:'Listen for the change between two drums.',bpm:70,active:['kick','snare'],pattern:[['kick',0],['snare',1],['kick',2]]},
+    {title:'Steady Four',subtitle:'Keep a steady four-beat pulse.',bpm:74,active:['kick','snare'],pattern:[['kick',0],['snare',1],['kick',2],['snare',3]]},
+    {title:'Hello Hi-hat',subtitle:'Introduce a light cymbal sound.',bpm:76,active:['kick','snare','hat'],pattern:[['hat',0],['hat',1],['snare',2],['hat',3]]},
+    {title:'Basic Groove',subtitle:'Build a simple drum groove.',bpm:80,active:['kick','snare','hat'],pattern:[['kick',0],['hat',1],['snare',2],['hat',3]]},
+    {title:'Quick Eighths',subtitle:'Listen for the shorter gaps between hits.',bpm:84,active:['kick','snare','hat'],pattern:[['kick',0],['hat',.5],['snare',1],['hat',1.5],['kick',2],['hat',2.5]]},
+    {title:'Mind the Rest',subtitle:'The silence between beats is part of the rhythm.',bpm:86,active:['kick','snare','hat'],pattern:[['kick',0],['snare',2],['hat',3],['kick',4]]},
+    {title:'Tom Parade',subtitle:'Travel across the drum kit.',bpm:88,active:['kick','snare','hat','tom1','tom2','floor'],pattern:[['snare',0],['tom1',1],['tom2',2],['floor',3]]},
+    {title:'The Big Groove',subtitle:'Mix drum sounds and offbeats.',bpm:93,active:['kick','snare','hat','tom1','tom2','floor','ride'],pattern:[['kick',0],['hat',.5],['snare',1],['ride',1.5],['tom1',2],['floor',3],['kick',4]]},
+    {title:'Drum Kit Master',subtitle:'Finish with the full kit and a crash!',bpm:98,active:['kick','snare','hat','tom1','tom2','floor','crash','ride'],pattern:[['kick',0],['hat',.5],['snare',1],['ride',1.5],['tom1',2],['tom2',2.5],['floor',3],['crash',4],['kick',5]]}
+  ];
+  const BEATS_STORE='melody-trail-beats-progress-1';
+  let beatsSaved={scores:Array(10).fill(null),unlocked:1,selected:1};
+  try{
+    const previous=JSON.parse(localStorage.getItem(BEATS_STORE)||'null');
+    if(previous && Array.isArray(previous.scores) && previous.scores.length===10){
+      beatsSaved={
+        scores:previous.scores.map(x=>Number.isFinite(x)?clamp(x,0,100):null),
+        unlocked:clamp(Number(previous.unlocked)||1,1,10),
+        selected:clamp(Number(previous.selected)||1,1,10)
+      };
+    }
+  }catch(_){}
+  let activeMode='melody',beatsLevel=clamp(beatsSaved.selected,1,beatsSaved.unlocked);
+  let beatsLive=false,beatsPreview=false,beatsHits=[],beatsFirstHit=null;
+  let beatsTimers=[],beatsGeneration=0;
   const labels = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
   const syllables = ['Do','Di','Re','Ri','Mi','Fa','Fi','Sol','Si','La','Li','Ti'];
   const keyNames = {kick:'Kick',snare:'Snare',hat:'Hi-hat',tom1:'High tom',tom2:'Low tom',floor:'Floor tom',crash:'Crash',ride:'Ride'};
@@ -850,6 +879,235 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
     updateScore(score,`${states.filter(s=>s==='ok').length}/${seq.length} correct piano notes. Matching both pitch and timing improves the grade.`);
     renderLane(-1,states);
   }
+
+  // All timers and score data are owned by Beats; original Melody tasks never
+  // inherit a live rhythm or score from this mode.
+  function beatsSchedule(fn,delay){
+    const id=setTimeout(fn,Math.max(0,delay));
+    beatsTimers.push(id);
+    return id;
+  }
+  function beatsCancel(){
+    beatsGeneration++;
+    beatsTimers.forEach(clearTimeout);
+    beatsTimers=[];
+    beatsLive=false;beatsPreview=false;beatsHits=[];beatsFirstHit=null;
+    $('beatsListen').disabled=false;
+    $('beatsStart').hidden=false;$('beatsStart').disabled=false;
+    $('beatsStop').hidden=true;
+  }
+  function beatsSave(){
+    try{localStorage.setItem(BEATS_STORE,JSON.stringify(beatsSaved));}catch(_){}
+  }
+  function currentBeatLesson(){return beatLessons[beatsLevel-1];}
+  function beatsPatternView(states=[],current=-1){
+    const items=currentBeatLesson().pattern;
+    const host=$('beatsSequence');
+    host.innerHTML='';
+    items.forEach((note,i)=>{
+      const chip=document.createElement('span');
+      chip.className='beat-seq-note'+(i===current?' now':'')+
+        (states[i]==='ok'?' correct':states[i]==='bad'?' wrong':'');
+      chip.textContent=(i+1)+'. '+keyNames[note[0]];
+      host.appendChild(chip);
+    });
+  }
+  function beatsSettings(){
+    const lesson=currentBeatLesson();
+    $('levelTitle').textContent='Beats · '+lesson.title;
+    $('levelDescription').textContent='Level '+beatsLevel+'/10 · '+lesson.subtitle;
+    const score=beatsSaved.scores[beatsLevel-1];
+    $('average').textContent=score===null?'—':score+'%';
+    $('levelProgress').style.width=(score===null?0:score)+'%';
+    $('levelTrack').innerHTML='';
+    beatLessons.forEach((item,i)=>{
+      const n=i+1,button=document.createElement('button');
+      button.type='button';
+      button.className='level-button'+(n===beatsLevel?' current':'')+
+        (beatsSaved.scores[i]>=80?' completed':'');
+      button.textContent=n>beatsSaved.unlocked?'🔒':n;
+      button.disabled=n>beatsSaved.unlocked;
+      button.setAttribute('aria-label',n>beatsSaved.unlocked?'Beats level '+n+' locked':'Open Beats level '+n);
+      button.addEventListener('click',()=>{beatsOpenLevel(n);$('settingsDialog').close();});
+      $('levelTrack').append(button);
+    });
+    $('micSettings').hidden=true;
+    $('howToPlay').textContent='Listen to the drum pattern, press Start, then tap the highlighted kit pieces in the same order and rhythm. Match the right drum for 70% and the timing for 30%. Score at least 80% to unlock the next Beats level. Microphone not needed.';
+  }
+  function beatsRender(){
+    const lesson=currentBeatLesson(),score=beatsSaved.scores[beatsLevel-1];
+    $('beatsTitle').textContent=lesson.title;
+    $('beatsSubtitle').textContent=lesson.subtitle;
+    $('beatsLevelPill').textContent='LEVEL '+beatsLevel+' / 10';
+    $('beatsStats').textContent='Best '+(score===null?'—':score+'%')+' · Need 80%';
+    $('beatsPrev').disabled=beatsLevel===1;
+    $('beatsNext').disabled=beatsLevel===10||beatsLevel>=beatsSaved.unlocked;
+    $('beatsNext').textContent=beatsLevel===10?'Finished!':'Next →';
+    $('levelCaption').textContent='BEATS '+beatsLevel;
+    $('taskStep').textContent='LEVEL '+beatsLevel+'/10';
+    makeDrumKit($('beatsDrumKit'),lesson.active,beatsTap);
+    beatsPatternView();
+    beatsSettings();
+    $('beatsListen').disabled=false;
+    $('beatsStart').hidden=false;
+    $('beatsStart').disabled=false;
+    $('beatsStop').hidden=true;
+    $('beatsResult').hidden=true;
+    $('beatsStatus').textContent='Listen, then press Start to imitate the beat. Tap any bright drum to practise.';
+  }
+  function beatsOpenLevel(n){
+    if(n<1||n>beatLessons.length||n>beatsSaved.unlocked)return;
+    beatsCancel();
+    beatsLevel=n;
+    beatsSaved.selected=n;
+    beatsSave();
+    beatsRender();
+  }
+  function beatsSwitchMode(mode){
+    if(mode!=='melody'&&mode!=='beats')return;
+    resetActivity();
+    beatsCancel();
+    if(mode==='beats'&&(nativeMic||stream))endMicrophone();
+    activeMode=mode;
+    $('musicGame').hidden=mode==='beats';
+    $('musicFooter').hidden=mode==='beats';
+    $('beatsGame').hidden=mode!=='beats';
+    $('melodyModeTab').classList.toggle('active',mode==='melody');
+    $('beatsModeTab').classList.toggle('active',mode==='beats');
+    $('melodyModeTab').setAttribute('aria-pressed',mode==='melody'?'true':'false');
+    $('beatsModeTab').setAttribute('aria-pressed',mode==='beats'?'true':'false');
+    try{localStorage.setItem('melody-trail-last-mode',mode);}catch(_){}
+    if(mode==='beats')beatsRender();
+    else {
+      $('micSettings').hidden=false;
+      $('howToPlay').textContent='Listen to the example, then imitate it. Use the five instrument icons to switch challenges. Your best scores are saved on this device. Complete all five and achieve an 80% level average to unlock the next level.';
+      render();
+    }
+  }
+  function beatsPlayExample(){
+    if(beatsLive||beatsPreview)return;
+    let ctx;
+    try{ctx=getAudio();}catch(error){$('beatsStatus').textContent=error.message;return;}
+    beatsPreview=true;
+    $('beatsListen').disabled=true;
+    $('beatsStart').disabled=true;
+    $('beatsResult').hidden=true;
+    $('beatsStatus').textContent='Listen to the drum pattern…';
+    const token=++beatsGeneration,lesson=currentBeatLesson();
+    const interval=60000/lesson.bpm,start=ctx.currentTime+.12;
+    lesson.pattern.forEach((hit,i)=>{
+      const delay=hit[1]*interval;
+      drumSound(hit[0],start+delay/1000);
+      beatsSchedule(()=>{
+        if(token!==beatsGeneration||activeMode!=='beats')return;
+        flashDemoKit($('beatsDrumKit'),hit[0]);
+        beatsPatternView([],i);
+      },delay+120);
+    });
+    const duration=(lesson.pattern[lesson.pattern.length-1][1]+1)*interval;
+    beatsSchedule(()=>{
+      if(token!==beatsGeneration)return;
+      beatsPreview=false;
+      $('beatsListen').disabled=false;
+      $('beatsStart').disabled=false;
+      beatsPatternView();
+      $('beatsStatus').textContent='Your turn! Press Start and tap the drums.';
+    },duration+260);
+  }
+  function beatsStartPerformance(){
+    if(beatsLive||beatsPreview)return;
+    try{getAudio();}catch(error){$('beatsStatus').textContent=error.message;return;}
+    beatsHits=[];beatsFirstHit=null;beatsPreview=true;
+    $('beatsResult').hidden=true;
+    $('beatsStart').hidden=true;$('beatsListen').disabled=true;
+    $('beatsStop').hidden=false;
+    const token=++beatsGeneration;
+    [3,2,1].forEach((value,i)=>{
+      beatsSchedule(()=>{
+        if(token!==beatsGeneration)return;
+        $('beatsStatus').textContent='Get ready… '+value;
+        beep(value===1?1050:740);
+      },i*600);
+    });
+    beatsSchedule(()=>{
+      if(token!==beatsGeneration)return;
+      beatsPreview=false;beatsLive=true;
+      beep(1175);
+      beatsPatternView();
+      $('beatsStatus').textContent='GO! Tap your first drum, then keep the rhythm!';
+      // Don't hold the assessment open forever if no touch arrives.
+      beatsSchedule(()=>{
+        if(token===beatsGeneration&&beatsLive&&!beatsHits.length)beatsFinish();
+      },11000);
+    },1800);
+  }
+  function beatsTap(part,button){
+    if(beatsPreview)return;
+    try{drumSound(part,getAudio().currentTime);}catch(error){
+      $('beatsStatus').textContent=error.message;return;
+    }
+    flashKit(button);
+    if(!beatsLive)return;
+    const now=performance.now(),lesson=currentBeatLesson();
+    if(beatsFirstHit===null){
+      beatsFirstHit=now;
+      const interval=60000/lesson.bpm;
+      const last=lesson.pattern[lesson.pattern.length-1][1]*interval;
+      const token=beatsGeneration;
+      beatsSchedule(()=>{
+        if(token===beatsGeneration&&beatsLive)beatsFinish();
+      },last+interval*.85+370);
+    }
+    beatsHits.push({part,time:now-beatsFirstHit});
+    beatsPatternView([],Math.min(lesson.pattern.length-1,beatsHits.length-1));
+    $('beatsStatus').textContent=beatsHits.length+' hit'+(beatsHits.length===1?'':'s')+' recorded · Keep the beat!';
+    if(beatsHits.length>=lesson.pattern.length+4)beatsFinish();
+  }
+  function beatsFinish(){
+    if(!beatsLive)return;
+    const lesson=currentBeatLesson(),hits=beatsHits.slice();
+    const interval=60000/lesson.bpm,states=[];
+    let total=0,correct=0;
+    lesson.pattern.forEach((entry,i)=>{
+      const hit=hits[i],matched=hit?.part===entry[0];
+      if(matched){
+        correct++;
+        const delta=i===0?0:Math.abs(hit.time-entry[1]*interval);
+        const timing=30*clamp(1-delta/(interval*.85),0,1);
+        total+=70+timing;
+        states.push(timing>=12?'ok':'bad');
+      }else states.push('bad');
+    });
+    const extras=Math.max(0,hits.length-lesson.pattern.length);
+    const score=clamp(Math.round(total/lesson.pattern.length-extras*6),0,100);
+    const index=beatsLevel-1,prior=beatsSaved.scores[index];
+    beatsSaved.scores[index]=prior===null?score:Math.max(prior,score);
+    if(beatsSaved.scores[index]>=80)
+      beatsSaved.unlocked=Math.max(beatsSaved.unlocked,Math.min(10,beatsLevel+1));
+    beatsSave();
+    beatsCancel();
+    beatsRender();
+    beatsPatternView(states);
+    const result=$('beatsResult');
+    result.hidden=false;
+    result.className='beats-result'+(score>=80?'':' needswork');
+    result.innerHTML='';
+    const headline=document.createElement('strong');
+    headline.textContent=score+'% · '+(score>=80?'Well done!':'Keep practising!');
+    const summary=document.createElement('span');
+    summary.textContent=correct+'/'+lesson.pattern.length+' correct drums · '+extras+
+      ' extra taps · 70% drum choice + 30% timing.'+
+      (score>=80?(beatsLevel===10?' You mastered all 10 levels!':' Next level unlocked!'):' Listen again and retry.');
+    result.append(headline,summary);
+    $('beatsStatus').textContent='Attempt saved. Replay the beat or choose another level.';
+  }
+  $('melodyModeTab').addEventListener('click',()=>beatsSwitchMode('melody'));
+  $('beatsModeTab').addEventListener('click',()=>beatsSwitchMode('beats'));
+  $('beatsListen').addEventListener('click',beatsPlayExample);
+  $('beatsStart').addEventListener('click',beatsStartPerformance);
+  $('beatsStop').addEventListener('click',beatsFinish);
+  $('beatsPrev').addEventListener('click',()=>beatsOpenLevel(beatsLevel-1));
+  $('beatsNext').addEventListener('click',()=>beatsOpenLevel(beatsLevel+1));
   function renderUpdateState(state,message,tag){
     const updating=state==='checking'||state==='downloading';
     $('updateStatus').textContent=message||(state==='current'?'App is up to date':'GitHub update status unavailable');
@@ -886,7 +1144,7 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
   $('advanceBtn').addEventListener('click',()=>{if(qualifies()&&level<patterns.length)openLevel(level+1);});
   document.addEventListener('keydown',e=>{
     if(e.repeat || e.ctrlKey || e.altKey || e.metaKey || /input|textarea|select/i.test(e.target.tagName))return;
-    if(getKind().key==='drum'){
+    if(activeMode==='melody'&&getKind().key==='drum'){
       const v=({j:'kick',k:'snare',l:'hat'})[e.key.toLowerCase()];if(v){e.preventDefault();const b=document.querySelector(`[data-drum="${v}"]`);if(b)b.click();}
     }
   });
@@ -896,11 +1154,12 @@ body{background:radial-gradient(ellipse at 12% 0%,#eef2ff 0%,transparent 45%),ra
     $('performBtn').disabled=false;$('hearBtn').disabled=false;
     showStatus('Microphone paused. Press Perform to reconnect.');
   };
-  window.addEventListener('pagehide',()=>{resetActivity();endMicrophone();if(audio?.state==='running')audio.close().catch(()=>{});});
+  window.addEventListener('pagehide',()=>{beatsCancel();resetActivity();endMicrophone();if(audio?.state==='running')audio.close().catch(()=>{});});
   // Progress is local to this browser. Recalculate unlocked levels from saved grades.
   saved.unlocked=clamp(Math.floor(saved.unlocked)||1,1,patterns.length);
   for(let i=1;i<patterns.length;i++)if(qualifies(i))saved.unlocked=Math.max(saved.unlocked,i+1);
   render();
+  if(localStorage.getItem('melody-trail-last-mode')==='beats')beatsSwitchMode('beats');
 })();
 
 
