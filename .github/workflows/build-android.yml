@@ -29,6 +29,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Check game JavaScript
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const matches = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)];
+          if (!matches.length) throw new Error('No game script in index.html');
+          for (const [, script] of matches) new Function(script);
+          console.log('Game JavaScript syntax OK');
+          NODE
       - name: Bundle current game
         run: cp index.html android/app/src/main/assets/index.html
       - name: Compile and lint Android app
